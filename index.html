@@ -297,6 +297,21 @@
                             <span id="temperatureValue" class="slider-value">0.7</span>
                         </div>
                     </div>
+                    
+                    <div class="form-group">
+                        <label for="chatModifyPrompt">对话修改Prompt:</label>
+                        <textarea id="chatModifyPrompt" class="form-control" rows="8" placeholder="请输入对话修改专用的prompt...">你是一名前端代码修复助手。
+用户会提供上一版完整 HTML和修改需求/问题描述。你的任务是：
+
+只改动必要部分：针对用户反馈逐条修改，保持其余部分不变，避免引入新问题。
+
+最小变更原则：不随意重命名变量/ID/类，不重构无关模块。
+
+输出前检查：确保代码能在浏览器直接运行，无报错，交互与显示符合 16:9、无滚动条、控件可用。
+
+无外部依赖：保持单文件 HTML，禁止引用库/CDN/网络请求。</textarea>
+                        <small>专门用于右侧对话框修改代码时的Prompt，与生成课件的Prompt分开配置</small>
+                    </div>
                 </div>
 
                 <div class="config-actions">

@@ -51,6 +51,7 @@ const elements = {
     testApiBtn: document.getElementById('testApiBtn'),
     apiTestResult: document.getElementById('apiTestResult'),
     systemPrompt: document.getElementById('systemPrompt'),
+    chatModifyPrompt: document.getElementById('chatModifyPrompt'),
     temperatureSlider: document.getElementById('temperatureSlider'),
     temperatureValue: document.getElementById('temperatureValue'),
     saveConfigBtn: document.getElementById('saveConfigBtn'),
@@ -356,6 +357,9 @@ async function executeActualGeneration() {
     
     // 测试用户prompt配置状态
     testUserPromptConfig();
+    
+    // 测试对话修改功能
+    testChatModifyFunction();
     
     // 尝试使用真实AI API生成
     let generatedContent = null;
@@ -2172,10 +2176,31 @@ async function generateAIResponse(message) {
     }
 }
 
-// 判断是否为修改请求
+// 判断是否为修改请求 - 改进版本
 function isModificationRequest(message) {
-    const modifyKeywords = ['修改', '更改', '调整', '优化', '改成', '换成', '加上', '删除', '改', '换', '变', '增加', '减少', '移除', '调', '美化', '改进'];
-    return modifyKeywords.some(keyword => message.includes(keyword));
+    const modifyKeywords = [
+        // 基础修改词汇
+        '修改', '更改', '调整', '优化', '改成', '换成', '加上', '删除', '改', '换', '变', '增加', '减少', '移除', '调', '美化', '改进',
+        // 颜色和样式
+        '颜色', '背景', '字体', '大小', '位置', '布局', '样式',
+        // 功能相关
+        '按钮', '点击', '交互', '动画', '效果', '功能',
+        // 内容相关
+        '文字', '内容', '标题', '图片', '替换',
+        // 否定词汇
+        '不要', '去掉', '隐藏', '取消'
+    ];
+    
+    // 转换为小写进行匹配
+    const lowerMessage = message.toLowerCase();
+    
+    // 检查是否包含修改关键词
+    const hasModifyKeyword = modifyKeywords.some(keyword => lowerMessage.includes(keyword));
+    
+    // 检查是否是具体的修改指令格式
+    const hasActionPattern = /把.*改成|将.*修改为|让.*变成|使.*成为/.test(lowerMessage);
+    
+    return hasModifyKeyword || hasActionPattern;
 }
 
 // 使用AI修改代码
@@ -2184,8 +2209,8 @@ async function modifyCodeWithAI(request, loadingMessageId) {
         // 更新加载状态
         updateChatMessage(loadingMessageId, '🔄 正在调用AI分析修改需求...');
         
-        // 构建修改prompt - 使用用户配置的系统prompt
-        const modifyPrompt = `${apiConfig.systemPrompt}
+        // 构建修改prompt - 使用专门的对话修改prompt
+        const modifyPrompt = `${apiConfig.chatModifyPrompt}
 
 ---
 
@@ -2456,6 +2481,16 @@ let apiConfig = {
 - 响应式交互反馈
 
 请直接返回完整的HTML代码，确保代码结构清晰、注释完善、功能完整。`,
+    chatModifyPrompt: `你是一名前端代码修复助手。
+用户会提供上一版完整 HTML和修改需求/问题描述。你的任务是：
+
+只改动必要部分：针对用户反馈逐条修改，保持其余部分不变，避免引入新问题。
+
+最小变更原则：不随意重命名变量/ID/类，不重构无关模块。
+
+输出前检查：确保代码能在浏览器直接运行，无报错，交互与显示符合 16:9、无滚动条、控件可用。
+
+无外部依赖：保持单文件 HTML，禁止引用库/CDN/网络请求。`,
     temperature: 0.7
 };
 
@@ -2719,6 +2754,7 @@ function saveApiConfig() {
         apiKey: elements.apiKey.value.trim(),
         baseUrl: elements.baseUrl.value.trim(),
         systemPrompt: elements.systemPrompt.value,
+        chatModifyPrompt: elements.chatModifyPrompt.value,
         temperature: parseFloat(elements.temperatureSlider.value)
     };
     
@@ -2741,6 +2777,7 @@ function loadApiConfig() {
         elements.apiKey.value = config.apiKey || '';
         elements.baseUrl.value = config.baseUrl || '';
         elements.systemPrompt.value = config.systemPrompt || apiConfig.systemPrompt;
+        elements.chatModifyPrompt.value = config.chatModifyPrompt || apiConfig.chatModifyPrompt;
         elements.temperatureSlider.value = config.temperature || 0.7;
         elements.temperatureValue.textContent = config.temperature || 0.7;
     }
@@ -2768,6 +2805,7 @@ function resetApiConfig() {
         elements.apiKey.value = '';
         elements.baseUrl.value = '';
         elements.systemPrompt.value = apiConfig.systemPrompt;
+        elements.chatModifyPrompt.value = apiConfig.chatModifyPrompt;
         elements.temperatureSlider.value = 0.7;
         elements.temperatureValue.textContent = '0.7';
         
@@ -2929,15 +2967,44 @@ function testUserPromptConfig() {
     console.log('🔍 当前prompt配置状态：');
     console.log('Provider:', apiConfig.provider);
     console.log('API Key配置:', apiConfig.apiKey ? '已配置' : '未配置');
-    console.log('自定义Prompt长度:', apiConfig.systemPrompt ? apiConfig.systemPrompt.length : 0);
+    console.log('生成课件Prompt长度:', apiConfig.systemPrompt ? apiConfig.systemPrompt.length : 0);
+    console.log('对话修改Prompt长度:', apiConfig.chatModifyPrompt ? apiConfig.chatModifyPrompt.length : 0);
     console.log('Temperature:', apiConfig.temperature);
     
     if (apiConfig.systemPrompt) {
-        console.log('自定义Prompt预览:', apiConfig.systemPrompt.substring(0, 100) + '...');
-        return true;
+        console.log('生成课件Prompt预览:', apiConfig.systemPrompt.substring(0, 100) + '...');
+    }
+    
+    if (apiConfig.chatModifyPrompt) {
+        console.log('对话修改Prompt预览:', apiConfig.chatModifyPrompt.substring(0, 100) + '...');
+    }
+    
+    return !!(apiConfig.systemPrompt && apiConfig.chatModifyPrompt);
+}
+
+// 测试对话修改功能
+function testChatModifyFunction() {
+    console.log('🧪 测试对话修改功能：');
+    
+    const testMessages = [
+        '把背景改成蓝色',
+        '增加一个按钮',
+        '修改标题文字',
+        '这个课件很好看',
+        '调整字体大小',
+        '你好，我想了解一下'
+    ];
+    
+    testMessages.forEach(msg => {
+        const isModify = isModificationRequest(msg);
+        console.log(`"${msg}" -> ${isModify ? '✅ 修改请求' : '❌ 普通对话'}`);
+    });
+    
+    if (!generatedHtmlCode) {
+        console.log('⚠️ 当前没有生成的HTML代码，无法测试实际修改功能');
+        console.log('💡 请先生成一个课件，然后在右侧对话框输入修改需求进行测试');
     } else {
-        console.log('⚠️ 使用默认prompt');
-        return false;
+        console.log('✅ HTML代码已生成，可以在右侧对话框测试修改功能');
     }
 }
 
