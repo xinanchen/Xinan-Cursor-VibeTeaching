@@ -251,7 +251,7 @@ function startGeneration() {
 }
 
 // 执行下一个任务
-function executeNextTask() {
+async function executeNextTask() {
     if (currentTaskIndex >= taskSteps.length) {
         // 所有任务完成
         finishAllTasks();
@@ -266,35 +266,88 @@ function executeNextTask() {
     // 在流式区域显示loading状态
     currentStepElement = addLoadingStreamingStep(currentTask.streamText, 'thinking');
     
-    // 模拟任务执行时间
+    // 根据不同任务执行不同逻辑
+    await executeTaskWithRealLogic(currentTask);
+    
+    // 完成当前步骤
+    completeLoadingStep(currentStepElement, currentTask.streamText.replace('正在', '已完成').replace('...', ''));
+    
+    // 更新进度条（标记为完成）
+    updateProgressStep(currentTask.id, true);
+    
+    // 继续下一个任务
+    currentTaskIndex++;
+    
+    // 短暂延迟后执行下一个任务
     setTimeout(() => {
-        // 完成当前步骤
-        completeLoadingStep(currentStepElement, currentTask.streamText.replace('正在', '已完成').replace('...', ''));
-        
-        // 更新进度条（标记为完成）
-        updateProgressStep(currentTask.id, true);
-        
-        // 执行特殊逻辑（如API调用）
-        if (currentTask.id === 6) {
-            // 在第6步实现JS功能交互时，执行实际的课件生成
-            executeActualGeneration();
-        }
-        
-        // 继续下一个任务
-        currentTaskIndex++;
-        
-        // 短暂延迟后执行下一个任务
-        setTimeout(() => {
-            executeNextTask();
-        }, 500);
-        
-    }, currentTask.duration);
+        executeNextTask();
+    }, 500);
+}
+
+// 根据任务步骤执行真实逻辑
+async function executeTaskWithRealLogic(currentTask) {
+    switch(currentTask.id) {
+        case 1: // AI课件生成器启动
+            // 立即显示代码预览区域（但内容为空）
+            elements.codePreviewSection.style.display = 'flex';
+            elements.generatedCode.textContent = '// 正在启动AI课件生成器...\n// 请等待代码生成完成';
+            await new Promise(resolve => setTimeout(resolve, currentTask.duration));
+            break;
+            
+        case 2: // 深度思考理解课件需求
+            elements.generatedCode.textContent = `/* AI正在分析课件需求 */\n// 课件主题: ${elements.promptInput.value}\n// 正在理解教学目标...`;
+            await new Promise(resolve => setTimeout(resolve, currentTask.duration));
+            break;
+            
+        case 3: // 确定教学目标和受众
+            elements.generatedCode.textContent += '\n\n/* 教学目标确定 */\n// 目标受众: 学生群体\n// 教学方式: 互动式课件\n// 显示比例: 16:9';
+            await new Promise(resolve => setTimeout(resolve, currentTask.duration));
+            break;
+            
+        case 4: // 设计课件HTML架构
+            elements.generatedCode.textContent += '\n\n<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>正在生成...</title>\n</head>';
+            await new Promise(resolve => setTimeout(resolve, currentTask.duration));
+            break;
+            
+        case 5: // 编写CSS样式代码  
+            elements.generatedCode.textContent += '\n<style>\n    /* 16:9比例容器 */\n    .courseware-container {\n        width: 100vw;\n        height: 56.25vw;\n        max-height: 100vh;\n        max-width: 177.78vh;\n        margin: 0 auto;\n    }\n</style>';
+            await new Promise(resolve => setTimeout(resolve, currentTask.duration));
+            break;
+            
+        case 6: // 实现JS功能交互 - 真实AI生成
+            // 这一步执行真实的AI生成
+            await executeActualGeneration();
+            break;
+            
+        case 7: // 检查代码和优化性能
+            // 如果没有生成内容，使用示例
+            if (!generatedHtmlCode) {
+                generatedHtmlCode = generateSampleCourseware();
+                elements.generatedCode.textContent = generatedHtmlCode;
+            }
+            // 优化显示
+            elements.generatedCode.textContent = generatedHtmlCode;
+            await new Promise(resolve => setTimeout(resolve, currentTask.duration));
+            break;
+            
+        case 8: // 完成
+            // 最终更新预览
+            updatePreview();
+            await new Promise(resolve => setTimeout(resolve, currentTask.duration));
+            break;
+            
+        default:
+            await new Promise(resolve => setTimeout(resolve, currentTask.duration));
+    }
 }
 
 // 执行实际的课件生成（在第6步时调用）
 async function executeActualGeneration() {
     const prompt = elements.promptInput.value;
     let uploadedContent = '';
+    
+    // 显示生成中的状态
+    elements.generatedCode.textContent += '\n\n/* 🤖 正在调用AI生成完整课件... */\n// 请稍等，AI正在创造您的专属课件';
     
     // 如果有上传的文件，提取内容
     if (uploadedFile) {
@@ -306,10 +359,18 @@ async function executeActualGeneration() {
     
     if (apiConfig.apiKey) {
         try {
+            elements.generatedCode.textContent += '\n// 正在连接AI服务...';
             generatedContent = await generateCoursewareWithAI(prompt, uploadedContent);
+            
+            if (generatedContent) {
+                elements.generatedCode.textContent += '\n// ✅ AI生成成功！正在整理代码...';
+            }
         } catch (error) {
             console.error('AI生成失败:', error);
+            elements.generatedCode.textContent += '\n// ❌ AI生成失败，使用示例模板...';
         }
+    } else {
+        elements.generatedCode.textContent += '\n// 🔧 未配置API Key，使用示例模板...';
     }
     
     // 如果API生成失败或没有配置，使用示例代码作为后备
@@ -317,25 +378,34 @@ async function executeActualGeneration() {
         generatedContent = generateSampleCourseware();
     }
     
+    // 保存生成的代码
     generatedHtmlCode = generatedContent;
+    
+    // 立即更新显示的代码（显示真实生成的内容）
+    elements.generatedCode.textContent = generatedContent;
+    
+    // 等待一小段时间让用户看到更新
+    await new Promise(resolve => setTimeout(resolve, 1000));
 }
 
 // 完成所有任务
 function finishAllTasks() {
-    // 显示代码和预览区域
+    // 确保代码和预览区域可见（应该在第1步就显示了）
     elements.codePreviewSection.style.display = 'flex';
     
-    // 显示生成的代码
-    elements.generatedCode.textContent = generatedHtmlCode;
+    // 确保显示最新的生成代码
+    if (generatedHtmlCode) {
+        elements.generatedCode.textContent = generatedHtmlCode;
+    }
     
-    // 更新预览
+    // 最终更新预览
     updatePreview();
     
     // 启用头部按钮
     enableActionButtons();
     
     // 更新状态文本
-    elements.generationStatus.innerHTML = '<p class="status-text">✅ 所有功能已激活，可正常使用</p>';
+    elements.generationStatus.innerHTML = '<p class="status-text">✅ 课件生成完成，所有功能已激活</p>';
     
     // 添加AI消息
     const aiMessage = apiConfig.apiKey 
