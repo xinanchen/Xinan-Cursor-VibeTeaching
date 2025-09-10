@@ -474,6 +474,8 @@ body {
     padding: 48px 24px 24px 24px; /* 上48px(更大的分离间距) 右24px 下24px 左24px */
     display: flex;
     flex-direction: column;
+    background: transparent; /* 确保背景透明，防止色块问题 */
+    overflow: hidden; /* 防止内容溢出 */
 }
 
 .code-preview-container {
@@ -677,6 +679,8 @@ body {
     border: none;
     background: white;
     border-radius: 8px;
+    overflow: hidden; /* 确保iframe内容不溢出 */
+    box-sizing: border-box;
 }
 
 #previewFrame {
@@ -684,6 +688,9 @@ body {
     height: 100%;
     border: none;
     background: white;
+    border-radius: 8px;
+    overflow: hidden; /* 关键：隐藏内部滚动条 */
+    box-sizing: border-box;
 }
 
 .right-panel {
@@ -838,35 +845,19 @@ body {
     margin: 0;
 }
 
-/* 预览容器样式 */
+/* 预览容器样式 - 修复滚动条问题 */
 .preview-container {
     flex: 1;
     background: white;
-    border-radius: 0;
-    overflow: hidden;
+    border-radius: 8px;
+    overflow: hidden; /* 关键：隐藏滚动条 */
     position: relative;
     width: 100%;
     height: 100%;
+    box-sizing: border-box;
 }
 
-/* 确保预览内容可以滚动 */
-.preview-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.preview-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.preview-container::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-.preview-container::-webkit-scrollbar-thumb:hover {
-    background: #a1a1a1;
-}
+/* 移除preview-container的滚动条样式，因为内容应该在iframe内部处理 */
 
 /* 历史素材库弹窗 */
 .modal {

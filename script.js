@@ -33,7 +33,7 @@ const elements = {
     chatMessages: document.getElementById('chatMessages'),
     chatInput: document.getElementById('chatInput'),
     sendChatBtn: document.getElementById('sendChatBtn'),
-    generationStatus: document.getElementById('generationStatus'),
+    // generationStatus: 已移除状态提示元素
     demoBtnHeader: document.getElementById('demoBtnHeader'),
     downloadBtnHeader: document.getElementById('downloadBtnHeader'),
     fullscreenDemo: document.getElementById('fullscreenDemo'),
@@ -354,12 +354,16 @@ async function executeActualGeneration() {
         uploadedContent = `文件名：${uploadedFile.name}`;
     }
     
+    // 测试用户prompt配置状态
+    testUserPromptConfig();
+    
     // 尝试使用真实AI API生成
     let generatedContent = null;
     
     if (apiConfig.apiKey) {
         try {
             elements.generatedCode.textContent += '\n// 正在连接AI服务...';
+            elements.generatedCode.textContent += `\n// 使用${apiConfig.provider}提供商生成课件`;
             generatedContent = await generateCoursewareWithAI(prompt, uploadedContent);
             
             if (generatedContent) {
@@ -404,8 +408,7 @@ function finishAllTasks() {
     // 启用头部按钮
     enableActionButtons();
     
-    // 更新状态文本
-    elements.generationStatus.innerHTML = '<p class="status-text">✅ 课件生成完成，所有功能已激活</p>';
+    // 状态提示已移除
     
     // 添加AI消息
     const aiMessage = apiConfig.apiKey 
@@ -593,8 +596,7 @@ async function completeGeneration() {
     // 启用头部按钮
     enableActionButtons();
     
-    // 更新状态文本
-    elements.generationStatus.innerHTML = '<p class="status-text">✅ 所有功能已激活，可正常使用</p>';
+    // 状态提示已移除
     
     // 添加AI消息
     const aiMessage = apiConfig.apiKey 
@@ -1933,8 +1935,75 @@ function switchTab(tabName) {
     });
 }
 
+// 统一的iframe样式处理函数 - 修复滚动条和比例问题
+function applyIframeStyles(iframe) {
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    if (!iframeDoc) return;
+    
+    // 处理html元素 - 确保填满整个iframe
+    if (iframeDoc.documentElement) {
+        iframeDoc.documentElement.style.margin = '0';
+        iframeDoc.documentElement.style.padding = '0';
+        iframeDoc.documentElement.style.width = '100%';
+        iframeDoc.documentElement.style.height = '100%';
+        iframeDoc.documentElement.style.boxSizing = 'border-box';
+        iframeDoc.documentElement.style.overflow = 'hidden'; /* 隐藏html级别的滚动条 */
+    }
+    
+    // 处理body元素 - 关键的样式设置
+    if (iframeDoc.body) {
+        iframeDoc.body.style.margin = '0';
+        iframeDoc.body.style.padding = '0';
+        iframeDoc.body.style.width = '100%';
+        iframeDoc.body.style.height = '100%';
+        iframeDoc.body.style.overflow = 'hidden'; /* 关键：完全隐藏滚动条 */
+        iframeDoc.body.style.boxSizing = 'border-box';
+        iframeDoc.body.style.position = 'relative';
+    }
+    
+    // 查找课件容器并确保其样式正确 - 支持16:9比例
+    const coursewareContainer = iframeDoc.querySelector('.courseware-container, .container, [class*="container"]');
+    if (coursewareContainer) {
+        coursewareContainer.style.width = '100%';
+        coursewareContainer.style.height = '100%';
+        coursewareContainer.style.margin = '0';
+        coursewareContainer.style.padding = '0';
+        coursewareContainer.style.boxSizing = 'border-box';
+        coursewareContainer.style.overflow = 'hidden';
+        coursewareContainer.style.position = 'relative';
+        
+        // 确保16:9比例容器正确显示
+        const aspectRatioElements = coursewareContainer.style.aspectRatio || 
+                                   coursewareContainer.style.width === '100vw';
+        if (aspectRatioElements) {
+            coursewareContainer.style.aspectRatio = '16/9';
+            coursewareContainer.style.maxWidth = '100%';
+            coursewareContainer.style.maxHeight = '100%';
+        }
+    }
+    
+    // 额外处理：确保所有具有滚动属性的元素都被处理
+    const allElements = iframeDoc.querySelectorAll('*');
+    allElements.forEach(el => {
+        const computedStyle = iframeDoc.defaultView.getComputedStyle(el);
+        if (computedStyle.overflow === 'scroll' || computedStyle.overflow === 'auto') {
+            // 只对可能导致整体布局滚动的元素进行处理
+            if (el.tagName.toLowerCase() !== 'textarea' && 
+                el.tagName.toLowerCase() !== 'select' && 
+                !el.classList.contains('scrollable-content')) {
+                el.style.overflow = 'hidden';
+            }
+        }
+    });
+}
+
 // 更新预览
 function updatePreview() {
+    if (!generatedHtmlCode) {
+        console.warn('没有生成的HTML代码可预览');
+        return;
+    }
+    
     const previewDoc = elements.previewFrame.contentDocument || elements.previewFrame.contentWindow.document;
     previewDoc.open();
     previewDoc.write(generatedHtmlCode);
@@ -1943,24 +2012,9 @@ function updatePreview() {
     // 确保iframe内容加载完成后处理显示
     elements.previewFrame.onload = function() {
         try {
-            const iframeDoc = elements.previewFrame.contentDocument || elements.previewFrame.contentWindow.document;
-            if (iframeDoc.body) {
-                iframeDoc.body.style.margin = '0';
-                iframeDoc.body.style.padding = '0';
-                iframeDoc.body.style.width = '100%';
-                iframeDoc.body.style.height = '100%';
-                iframeDoc.body.style.overflow = 'auto';
-                
-                // 设置html元素样式
-                if (iframeDoc.documentElement) {
-                    iframeDoc.documentElement.style.margin = '0';
-                    iframeDoc.documentElement.style.padding = '0';
-                    iframeDoc.documentElement.style.width = '100%';
-                    iframeDoc.documentElement.style.height = '100%';
-                }
-            }
-        } catch (e) {
-            console.log('无法访问iframe内容，可能是跨域限制');
+            applyIframeStyles(elements.previewFrame);
+        } catch (error) {
+            console.error('预览iframe样式设置失败:', error);
         }
     };
 }
@@ -2130,8 +2184,12 @@ async function modifyCodeWithAI(request, loadingMessageId) {
         // 更新加载状态
         updateChatMessage(loadingMessageId, '🔄 正在调用AI分析修改需求...');
         
-        // 构建修改prompt
-        const modifyPrompt = `你是一个专业的HTML课件修改助手。我有一个HTML互动课件，用户想要进行以下修改：
+        // 构建修改prompt - 使用用户配置的系统prompt
+        const modifyPrompt = `${apiConfig.systemPrompt}
+
+---
+
+这是一个课件修改任务。用户对现有课件提出了修改需求：
 
 用户需求：${request}
 
@@ -2169,8 +2227,7 @@ ${generatedHtmlCode}
             // 显示成功提示
             showToast('课件代码已更新！', 'success');
             
-            // 更新状态文本
-            elements.generationStatus.innerHTML = '<p class="status-text">✅ 课件已根据您的要求更新</p>';
+            // 状态提示已移除
             
         } else {
             throw new Error('AI返回的代码为空');
@@ -2196,6 +2253,11 @@ function startDemo() {
         return;
     }
     
+    if (!generatedHtmlCode) {
+        showToast('没有可演示的课件', 'error');
+        return;
+    }
+    
     elements.fullscreenDemo.style.display = 'block';
     document.body.style.overflow = 'hidden';
     
@@ -2204,6 +2266,15 @@ function startDemo() {
     demoDoc.open();
     demoDoc.write(generatedHtmlCode);
     demoDoc.close();
+    
+    // 确保演示iframe内容加载完成后处理显示 - 与预览保持一致
+    elements.demoFrame.onload = function() {
+        try {
+            applyIframeStyles(elements.demoFrame);
+        } catch (error) {
+            console.error('演示iframe样式设置失败:', error);
+        }
+    };
 }
 
 // 退出演示
@@ -2830,7 +2901,44 @@ async function callAIAPI(prompt) {
         content = data.choices?.[0]?.message?.content || '';
     }
     
+    // 清理markdown代码块标记
+    content = cleanMarkdownCodeBlocks(content);
+    
     return content;
+}
+
+// 清理markdown代码块标记
+function cleanMarkdownCodeBlocks(content) {
+    if (!content) return content;
+    
+    // 移除开头的```html、```HTML、```等标记
+    content = content.replace(/^```(html|HTML|javascript|js|css)?\s*\n?/i, '');
+    
+    // 移除结尾的```标记
+    content = content.replace(/\n?```\s*$/i, '');
+    
+    // 移除中间可能出现的```标记
+    content = content.replace(/```(html|HTML|javascript|js|css)?\s*\n?/gi, '');
+    content = content.replace(/\n?```\s*/gi, '');
+    
+    return content.trim();
+}
+
+// 测试用户配置的prompt是否生效
+function testUserPromptConfig() {
+    console.log('🔍 当前prompt配置状态：');
+    console.log('Provider:', apiConfig.provider);
+    console.log('API Key配置:', apiConfig.apiKey ? '已配置' : '未配置');
+    console.log('自定义Prompt长度:', apiConfig.systemPrompt ? apiConfig.systemPrompt.length : 0);
+    console.log('Temperature:', apiConfig.temperature);
+    
+    if (apiConfig.systemPrompt) {
+        console.log('自定义Prompt预览:', apiConfig.systemPrompt.substring(0, 100) + '...');
+        return true;
+    } else {
+        console.log('⚠️ 使用默认prompt');
+        return false;
+    }
 }
 
 // 应用初始化
