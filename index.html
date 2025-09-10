@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibe Teaching - AI智能课件生成器</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- 加载屏幕 -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loader"></div>
+        <p>正在加载 Vibe Teaching...</p>
+    </div>
+
+    <!-- 界面1: 输入页面 -->
+    <div class="page-container" id="inputPage">
+        <header class="top-header">
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <h1 class="logo-text">Vibe Teaching</h1>
+            </div>
+            
+            <div class="history-section">
+                <button class="history-btn" id="historyBtn">
+                    <i class="fas fa-history"></i>
+                    <span>历史素材库</span>
+                </button>
+                <button class="config-btn" id="configBtn" title="配置">
+                    <i class="fas fa-cog"></i>
+                    <span>配置</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="input-main">
+            <div class="slogan-container">
+                <h2 class="slogan">让天下没有难教的知识</h2>
+                <p class="sub-slogan">AI驱动的智能课件生成器，一键创建互动教学内容</p>
+            </div>
+
+            <div class="input-container">
+                <div class="textarea-wrapper">
+                    <textarea 
+                        id="promptInput" 
+                        placeholder="请输入您的课件需求，例如：创建一个关于植物光合作用的互动课件，包含实验演示和练习题..."
+                        rows="8"
+                    ></textarea>
+                </div>
+                
+                <div class="action-buttons">
+                    <div class="upload-section">
+                        <input type="file" id="fileUpload" accept=".docx,.doc" style="display: none;">
+                        <button class="upload-btn" id="uploadBtn">
+                            <i class="fas fa-upload"></i>
+                            上传教案文档
+                        </button>
+                        <span class="file-info" id="fileInfo"></span>
+                    </div>
+                    
+                    <button class="generate-btn" id="generateBtn">
+                        <div class="magic-wand-icon">
+                            <i class="fas fa-magic"></i>
+                            <div class="wand-star">✨</div>
+                        </div>
+                        开始生成
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 界面2: 思考/生成/调整页面 -->
+    <div class="page-container" id="generatePage" style="display: none;">
+        <header class="generate-header">
+            <div class="logo-mini">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <span>Vibe Teaching</span>
+            </div>
+            <div class="progress-indicator">
+                <div class="progress-step active" data-step="1">思考分析</div>
+                <div class="progress-step" data-step="2">代码生成</div>
+                <div class="progress-step" data-step="3">效果预览</div>
+            </div>
+            <div class="header-actions">
+                <button class="action-btn demo-btn-header disabled" id="demoBtnHeader">
+                    <i class="fas fa-play"></i>
+                    演示
+                </button>
+                <button class="action-btn download-btn-header disabled" id="downloadBtnHeader">
+                    <i class="fas fa-download"></i>
+                    下载
+                </button>
+            </div>
+        </header>
+
+        <div class="generate-content">
+            <div class="left-panel">
+                <!-- AI流式思考和代码生成区 -->
+                <div class="streaming-panel" id="streamingPanel">
+                    <h3><i class="fas fa-brain"></i> AI实时生成过程</h3>
+                    <div class="streaming-content" id="streamingContent">
+                        <div class="thinking-step">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            🚀 AI课件生成器启动中...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 代码和预览区域 -->
+                <div class="code-preview-section" id="codePreviewSection" style="display: none;">
+                    <div class="code-preview-container">
+                        <div class="tab-container">
+                            <div class="tab-buttons">
+                                <button class="tab-btn active" data-tab="preview">
+                                    <i class="fas fa-eye"></i> 课件预览
+                                </button>
+                                <button class="tab-btn" data-tab="code">
+                                    <i class="fas fa-code"></i> 生成代码
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="tab-content">
+                            <div class="tab-pane active" id="previewTab">
+                                <div class="preview-container">
+                                    <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+                                </div>
+                            </div>
+                            <div class="tab-pane" id="codeTab">
+                                <div class="code-editor">
+                                    <pre id="generatedCode"><code></code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <!-- AI对话栏 -->
+                <div class="chat-panel">
+                    <div class="chat-header">
+                        <h3><i class="fas fa-comments"></i> AI助手</h3>
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message ai-message">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                您好！我正在为您生成课件，如果您有任何修改要求，请随时告诉我。
+                            </div>
+                        </div>
+                    </div>
+                    <div class="generation-status" id="generationStatus">
+                        <p class="status-text">正在生成中，请稍候...</p>
+                    </div>
+                    
+                    <div class="chat-input">
+                        <input type="text" id="chatInput" placeholder="输入修改要求...">
+                        <button id="sendChatBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 历史素材库弹窗 -->
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-history"></i> 历史素材库</h3>
+                <button class="close-btn" id="closeHistoryModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="history-grid" id="historyGrid">
+                    <!-- 历史项目将在这里动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API配置弹窗 -->
+    <div class="modal" id="configModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> API配置</h3>
+                <button class="close-btn" id="closeConfigModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="config-section">
+                    <h4><i class="fas fa-key"></i> API密钥配置</h4>
+                    <div class="form-group">
+                        <label for="apiProvider">AI服务提供商:</label>
+                        <select id="apiProvider" class="form-control">
+                            <option value="openai">OpenAI (GPT-4)</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="google">Google AI Studio (Gemini)</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="zhipu">智谱AI (GLM)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="apiKey">API Key:</label>
+                        <div class="api-key-input">
+                            <input type="password" id="apiKey" class="form-control" placeholder="请输入您的API Key">
+                            <button type="button" id="toggleApiKey" class="btn-toggle">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="baseUrl">API Base URL (可选):</label>
+                        <input type="text" id="baseUrl" class="form-control" placeholder="如使用代理或自定义端点">
+                        <div class="api-hint" id="apiHint" style="margin-top: 8px; font-size: 12px; color: #666; display: none;">
+                            <i class="fas fa-info-circle"></i> <span id="hintText"></span>
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <button id="testApiBtn" class="btn btn-primary">
+                            <i class="fas fa-vial"></i> 测试连接
+                        </button>
+                        <span id="apiTestResult" class="test-result"></span>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h4><i class="fas fa-info-circle"></i> 使用说明</h4>
+                    <div class="usage-tips">
+                        <div class="tip-item">
+                            <strong>💰 关于费用：</strong>
+                            <ul>
+                                <li><strong>DeepSeek</strong>：需要充值使用，价格低廉（约0.001元/1K token）</li>
+                                <li><strong>智谱AI</strong>：新用户有免费额度，国内服务稳定</li>
+                                <li><strong>Google AI Studio</strong>：有免费额度，但浏览器直接调用有CORS限制</li>
+                                <li><strong>OpenAI</strong>：需要付费，效果最佳但价格较高</li>
+                            </ul>
+                        </div>
+                        <div class="tip-item">
+                            <strong>🚀 推荐配置：</strong>
+                            <p>首次使用建议选择<strong>智谱AI (GLM-4)</strong>，注册即送免费额度，无网络限制！</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h4><i class="fas fa-edit"></i> Prompt配置</h4>
+                    <div class="form-group">
+                        <label for="systemPrompt">系统Prompt:</label>
+                        <textarea id="systemPrompt" class="form-control" rows="8" placeholder="请输入系统prompt...">你是一个专业的HTML互动课件生成器。请根据用户提供的课件主题和要求，生成高质量的HTML互动课件。
+
+要求：
+1. 生成完整的HTML代码，包含CSS样式和JavaScript交互
+2. 课件应该具有良好的视觉效果和用户体验
+3. 包含适当的动画和交互元素
+4. 确保代码结构清晰，注释完整
+5. 适配16:9的显示比例
+6. 内容要准确、有教育价值
+
+请直接返回HTML代码，不需要其他说明。</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="temperatureSlider">创意度 (Temperature):</label>
+                        <div class="slider-container">
+                            <input type="range" id="temperatureSlider" class="slider" min="0" max="1" step="0.1" value="0.7">
+                            <span id="temperatureValue" class="slider-value">0.7</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-actions">
+                    <button id="saveConfigBtn" class="btn btn-success">
+                        <i class="fas fa-save"></i> 保存配置
+                    </button>
+                    <button id="resetConfigBtn" class="btn btn-secondary">
+                        <i class="fas fa-undo"></i> 重置默认
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全屏演示模式 -->
+    <div class="fullscreen-demo" id="fullscreenDemo" style="display: none;">
+        <div class="demo-controls">
+            <button class="exit-demo-btn" id="exitDemoBtn">
+                <i class="fas fa-times"></i>
+                退出演示
+            </button>
+        </div>
+        <div class="demo-content">
+            <iframe id="demoFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
