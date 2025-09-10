@@ -278,8 +278,41 @@ function addStreamingStep(step, type = 'thinking') {
     elements.streamingContent.scrollTop = elements.streamingContent.scrollHeight;
 }
 
+// 添加带loading状态的流式步骤
+function addLoadingStreamingStep(step, type = 'thinking') {
+    const stepElement = document.createElement('div');
+    stepElement.className = `${type}-step fade-in`;
+    
+    // 初始显示loading图标
+    const loadingIcon = '<i class="fas fa-spinner fa-spin" style="color: #2196F3;"></i>';
+    
+    stepElement.innerHTML = `
+        ${loadingIcon}
+        ${step}
+    `;
+    
+    elements.streamingContent.appendChild(stepElement);
+    elements.streamingContent.scrollTop = elements.streamingContent.scrollHeight;
+    
+    // 返回步骤元素，以便后续更新
+    return stepElement;
+}
+
+// 完成loading状态的步骤
+function completeLoadingStep(stepElement, step) {
+    const completedIcon = '<i class="fas fa-check-circle" style="color: #4CAF50;"></i>';
+    stepElement.innerHTML = `
+        ${completedIcon}
+        ${step}
+    `;
+}
+
 // 完成思考阶段
 function completeThinking() {
+    // 完成第1步：AI课件生成器启动
+    updateProgressStep(1, true); // 标记第1步为完成
+    
+    // 启动第2步：代码生成
     updateProgressStep(2);
     
     // 开始代码生成过程
@@ -320,17 +353,41 @@ async function completeGeneration() {
         uploadedContent = `文件名：${uploadedFile.name}`;
     }
     
+    // 完成第2步：代码生成
+    updateProgressStep(2, true); // 标记第2步为完成
+    
+    // 启动第3步：效果预览
+    updateProgressStep(3);
+    
     // 尝试使用真实AI API生成
     let generatedContent = null;
+    let loadingStep = null;
     
     if (apiConfig.apiKey) {
-        addStreamingStep('🤖 正在调用AI API生成课件...', 'thinking');
-        generatedContent = await generateCoursewareWithAI(prompt, uploadedContent);
+        // 显示loading状态的API调用步骤
+        loadingStep = addLoadingStreamingStep('🤖 正在调用AI API生成课件...', 'thinking');
+        
+        try {
+            generatedContent = await generateCoursewareWithAI(prompt, uploadedContent);
+            
+            if (generatedContent) {
+                // API调用成功，更新步骤状态
+                completeLoadingStep(loadingStep, '🤖 AI课件生成成功！');
+            } else {
+                throw new Error('API返回空内容');
+            }
+        } catch (error) {
+            // API调用失败，更新步骤状态
+            completeLoadingStep(loadingStep, '❌ AI生成失败，使用示例模板');
+        }
     }
     
-    // 如果API生成失败，使用示例代码作为后备
+    // 如果API生成失败或没有配置，使用示例代码作为后备
     if (!generatedContent) {
-        addStreamingStep('📝 使用示例模板生成课件...', 'thinking');
+        if (!loadingStep) {
+            // 没有API Key的情况
+            addStreamingStep('📝 使用示例模板生成课件...', 'thinking');
+        }
         generatedContent = generateSampleCourseware();
     }
     
@@ -339,8 +396,8 @@ async function completeGeneration() {
     // 在流式区域添加最终完成步骤
     addStreamingStep('🎉 课件生成完成！可以预览使用', 'thinking');
     
-    // 更新进度
-    updateProgressStep(3);
+    // 完成第3步：效果预览
+    updateProgressStep(3, true);
     
     // 显示代码和预览区域
     elements.codePreviewSection.style.display = 'flex';
@@ -407,7 +464,7 @@ function generateSampleCourseware() {
     }
 }
 
-// 生成生物课件
+// 生成生物课件（新版：16:9多页面结构）
 function generateBiologyCourseware() {
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -418,330 +475,518 @@ function generateBiologyCourseware() {
     <style>
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
         
         html, body {
-            margin: 0;
-            padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
-        }
-        
-        body {
             font-family: 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #74b9ff, #0984e3);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         
+        /* 16:9 固定比例容器 */
         .courseware-container {
-            width: 100vw;
-            height: 100vh;
-            aspect-ratio: 16/9;
-            max-width: calc(100vh * 16 / 9);
-            max-height: calc(100vw * 9 / 16);
-            background: linear-gradient(135deg, #74b9ff, #0984e3);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
             position: relative;
+            width: 100vw;
+            height: 56.25vw; /* 16:9 比例 */
+            max-height: 100vh;
+            max-width: 177.78vh; /* 16:9 比例 */
+            margin: 0 auto;
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 50%, #00b894 100%);
+            overflow: hidden;
         }
         
-        .container {
+        /* 页面容器 */
+        .page {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            padding: 3vh 4vw;
-            display: flex;
+            padding: 3% 5%;
+            display: none;
             flex-direction: column;
-            justify-content: space-between;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.5s ease;
         }
         
-        .header {
+        .page.active {
+            display: flex;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        /* 导航栏 */
+        .nav-bar {
+            position: absolute;
+            top: 2%;
+            right: 2%;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* 页面指示器 */
+        .page-indicator {
+            position: absolute;
+            bottom: 3%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+        }
+        
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .dot.active {
+            background: white;
+            transform: scale(1.3);
+        }
+        
+        /* 页面样式 */
+        .page-title {
+            font-size: 3em;
             text-align: center;
-            margin-bottom: 40px;
-        }
-        
-        .title {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            animation: fadeInDown 1s ease;
         }
         
-        .subtitle {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-        
-        .section {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 30px;
+        .page-subtitle {
+            font-size: 1.3em;
+            text-align: center;
             margin-bottom: 30px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            color: rgba(255,255,255,0.9);
+            animation: fadeInUp 1s ease 0.3s both;
         }
         
-        .photosynthesis-demo {
+        .content-section {
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 30px;
-            margin: 40px 0;
+            flex-wrap: wrap;
         }
         
-        .element {
-            text-align: center;
-            padding: 20px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
+        /* 知识卡片 */
+        .knowledge-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            width: 280px;
+            color: white;
+            animation: slideInUp 0.8s ease;
+        }
+        
+        .knowledge-card h3 {
+            color: #00b894;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        /* 互动元素 */
+        .interactive-leaf {
             width: 120px;
             height: 120px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            background: radial-gradient(ellipse at center, #00b894, #00a085);
+            border-radius: 50% 10% 50% 10%;
+            position: relative;
             cursor: pointer;
             transition: all 0.3s ease;
             animation: float 3s ease-in-out infinite;
         }
         
-        .element:hover {
-            transform: scale(1.1);
-            background: rgba(255,255,255,0.3);
+        .interactive-leaf:hover {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 10px 30px rgba(0,184,148,0.4);
         }
         
-        .element.sun { animation-delay: 0s; }
-        .element.co2 { animation-delay: 0.5s; }
-        .element.water { animation-delay: 1s; }
-        .element.oxygen { animation-delay: 1.5s; }
-        .element.glucose { animation-delay: 2s; }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+        .interactive-leaf.clicked {
+            background: radial-gradient(ellipse at center, #00e676, #00c853);
+            animation: pulse 0.6s ease;
         }
         
-        .arrow {
-            font-size: 2em;
-            color: #ffd700;
-            animation: pulse 2s ease-in-out infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 0.7; }
-            50% { opacity: 1; }
-        }
-        
-        .quiz-section {
-            margin-top: 40px;
+        /* 练习题样式 */
+        .quiz-container {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
         }
         
         .question {
-            background: rgba(255,255,255,0.15);
-            border-radius: 10px;
-            padding: 20px;
+            font-size: 1.2em;
             margin-bottom: 20px;
+            color: white;
         }
         
         .options {
-            list-style: none;
-            padding: 0;
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
         }
         
-        .options li {
-            background: rgba(255,255,255,0.1);
-            margin: 10px 0;
-            padding: 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .options li:hover {
+        .option {
             background: rgba(255,255,255,0.2);
-            transform: translateX(10px);
-        }
-        
-        .options li.correct {
-            background: rgba(46, 213, 115, 0.3);
-            border-left: 4px solid #2ed573;
-        }
-        
-        .options li.wrong {
-            background: rgba(255, 107, 107, 0.3);
-            border-left: 4px solid #ff6b6b;
-        }
-        
-        .start-btn {
-            background: linear-gradient(135deg, #00b894, #00cec9);
             border: none;
+            padding: 15px;
+            border-radius: 10px;
             color: white;
-            padding: 15px 30px;
-            font-size: 1.1em;
-            border-radius: 25px;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,184,148,0.3);
+            text-align: left;
         }
         
-        .start-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0,184,148,0.4);
+        .option:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateX(5px);
         }
         
-        .interactive-element {
+        .option.correct {
+            background: rgba(76, 175, 80, 0.7);
+        }
+        
+        .option.incorrect {
+            background: rgba(244, 67, 54, 0.7);
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
             display: none;
         }
         
-        .interactive-element.active {
+        .result.show {
             display: block;
-            animation: fadeInUp 0.5s ease;
+            animation: slideInUp 0.5s ease;
+        }
+        
+        .result.correct {
+            background: rgba(76, 175, 80, 0.3);
+            color: #c8e6c9;
+        }
+        
+        .result.incorrect {
+            background: rgba(244, 67, 54, 0.3);
+            color: #ffcdd2;
+        }
+        
+        /* 动画 */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        /* 响应式调整 */
+        @media (max-height: 600px) {
+            .page-title { font-size: 2.2em; }
+            .page-subtitle { font-size: 1.1em; }
         }
     </style>
 </head>
 <body>
     <div class="courseware-container">
-        <div class="container">
-            <div class="header">
-                <h1 class="title">🌱 植物光合作用</h1>
-                <p class="subtitle">探索植物如何利用阳光制造养分</p>
-            </div>
-        
-        <div class="section">
-            <h2>💡 什么是光合作用？</h2>
-            <p>光合作用是植物利用叶绿素，在光照条件下，将二氧化碳和水转化为葡萄糖和氧气的过程。</p>
-            <div style="text-align: center; margin: 20px 0;">
-                <button class="start-btn" onclick="startDemo()">开始互动演示</button>
-            </div>
+        <!-- 导航栏 -->
+        <div class="nav-bar">
+            <button class="nav-btn" id="prevBtn" onclick="changePage(-1)">◀ 上一页</button>
+            <button class="nav-btn" id="nextBtn" onclick="changePage(1)">下一页 ▶</button>
         </div>
         
-        <div class="section interactive-element" id="demoSection">
-            <h2>🔬 光合作用过程演示</h2>
-            <div class="photosynthesis-demo">
-                <div class="element sun" onclick="showInfo('sun')">
-                    <div style="font-size: 2em;">☀️</div>
-                    <div>阳光</div>
-                </div>
-                <div class="arrow">→</div>
-                <div class="element co2" onclick="showInfo('co2')">
-                    <div style="font-size: 2em;">💨</div>
-                    <div>CO₂</div>
-                </div>
-                <div class="arrow">+</div>
-                <div class="element water" onclick="showInfo('water')">
-                    <div style="font-size: 2em;">💧</div>
-                    <div>H₂O</div>
-                </div>
-                <div class="arrow">→</div>
-                <div class="element glucose" onclick="showInfo('glucose')">
-                    <div style="font-size: 2em;">🍯</div>
-                    <div>葡萄糖</div>
-                </div>
-                <div class="arrow">+</div>
-                <div class="element oxygen" onclick="showInfo('oxygen')">
-                    <div style="font-size: 2em;">💨</div>
-                    <div>O₂</div>
-                </div>
-            </div>
-            <div id="infoBox" style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; margin-top: 20px; display: none;">
-                <p id="infoText"></p>
-            </div>
+        <!-- 页面指示器 -->
+        <div class="page-indicator">
+            <div class="dot active" onclick="goToPage(0)"></div>
+            <div class="dot" onclick="goToPage(1)"></div>
+            <div class="dot" onclick="goToPage(2)"></div>
+            <div class="dot" onclick="goToPage(3)"></div>
+            <div class="dot" onclick="goToPage(4)"></div>
+            <div class="dot" onclick="goToPage(5)"></div>
         </div>
         
-        <div class="section interactive-element" id="quizSection">
-            <h2>🧠 知识检测</h2>
-            <div class="quiz-section">
-                <div class="question">
-                    <h3>植物进行光合作用需要哪些条件？</h3>
-                    <ul class="options">
-                        <li onclick="selectAnswer(this, false)">A. 只需要阳光</li>
-                        <li onclick="selectAnswer(this, false)">B. 只需要水分</li>
-                        <li onclick="selectAnswer(this, true)">C. 需要阳光、二氧化碳和水</li>
-                        <li onclick="selectAnswer(this, false)">D. 只需要二氧化碳</li>
+        <!-- 第1页：标题页 -->
+        <div class="page active">
+            <h1 class="page-title">🌱 植物光合作用</h1>
+            <p class="page-subtitle">探索绿色植物的神奇能量转换</p>
+            <div class="content-section">
+                <div class="knowledge-card">
+                    <h3>📚 学习目标</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>了解光合作用的基本过程</li>
+                        <li>掌握光合作用的条件和产物</li>
+                        <li>理解光合作用的生物学意义</li>
+                        <li>通过互动实验加深理解</li>
                     </ul>
                 </div>
             </div>
         </div>
         
-        <div class="section">
-            <h2>🌍 光合作用的意义</h2>
-            <ul>
-                <li>🌿 为植物提供营养，支持植物生长</li>
-                <li>🫁 产生氧气，维持地球大气平衡</li>
-                <li>🍎 为整个食物链提供基础能量来源</li>
-                <li>🌡️ 吸收二氧化碳，缓解温室效应</li>
-            </ul>
+        <!-- 第2页：重点知识1 -->
+        <div class="page">
+            <h2 class="page-title">📚 光合作用的条件</h2>
+            <div class="content-section" style="justify-content: space-around;">
+                <div class="knowledge-card">
+                    <h3>☀️ 光照</h3>
+                    <p>阳光提供光合作用所需的光能，是光反应阶段的必要条件。</p>
+                </div>
+                <div class="knowledge-card">
+                    <h3>💧 水分</h3>
+                    <p>水分作为光合作用的原料，参与光反应，产生氧气和氢离子。</p>
+                </div>
+                <div class="knowledge-card">
+                    <h3>🌬️ 二氧化碳</h3>
+                    <p>CO₂作为暗反应的原料，在叶绿体中被固定形成有机物。</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第3页：重点知识2 -->
+        <div class="page">
+            <h2 class="page-title">⚗️ 光合作用方程式</h2>
+            <div class="content-section">
+                <div class="knowledge-card" style="width: 500px; text-align: center;">
+                    <h3>化学反应式</h3>
+                    <div style="font-size: 1.2em; margin: 30px 0; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                        6CO₂ + 6H₂O + 光能 → C₆H₁₂O₆ + 6O₂
+                    </div>
+                    <p><strong>场所：</strong>叶绿体</p>
+                    <p><strong>条件：</strong>光照、叶绿素</p>
+                    <p><strong>意义：</strong>将无机物转化为有机物，释放氧气</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第4页：互动实践1 -->
+        <div class="page">
+            <h2 class="page-title">🎮 互动探索：光合作用要素</h2>
+            <p class="page-subtitle">点击不同的叶片，了解光合作用的三大要素</p>
+            <div class="content-section">
+                <div style="position: relative;">
+                    <div class="interactive-leaf" onclick="showLeafInfo(0)" style="animation-delay: 0s;">
+                        <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.9em; color: #fff;">☀️ 阳光</div>
+                    </div>
+                </div>
+                <div style="position: relative;">
+                    <div class="interactive-leaf" onclick="showLeafInfo(1)" style="animation-delay: 1s;">
+                        <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.9em; color: #fff;">💧 水分</div>
+                    </div>
+                </div>
+                <div style="position: relative;">
+                    <div class="interactive-leaf" onclick="showLeafInfo(2)" style="animation-delay: 2s;">
+                        <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.9em; color: #fff;">🌬️ CO₂</div>
+                    </div>
+                </div>
+            </div>
+            <div id="leafInfo" style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 15px; display: none; animation: slideInUp 0.5s ease;">
+                <h3 id="infoTitle"></h3>
+                <p id="infoContent"></p>
+            </div>
+        </div>
+        
+        <!-- 第5页：随堂练习1 -->
+        <div class="page">
+            <h2 class="page-title">📝 随堂练习：选择题</h2>
+            <div class="content-section">
+                <div class="quiz-container">
+                    <div class="question">
+                        光合作用的主要场所是？
+                    </div>
+                    <div class="options">
+                        <button class="option" onclick="selectAnswer(0, false)">A. 细胞核</button>
+                        <button class="option" onclick="selectAnswer(1, false)">B. 细胞膜</button>
+                        <button class="option" onclick="selectAnswer(2, true)">C. 叶绿体</button>
+                        <button class="option" onclick="selectAnswer(3, false)">D. 线粒体</button>
+                    </div>
+                    <div id="result1" class="result">
+                        <h4 id="resultTitle1"></h4>
+                        <p id="resultText1"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第6页：总结回顾 -->
+        <div class="page">
+            <h2 class="page-title">🎯 总结与回顾</h2>
+            <div class="content-section">
+                <div class="knowledge-card" style="width: 600px;">
+                    <h3>🌟 关键知识点</h3>
+                    <ul style="line-height: 2; font-size: 1.1em;">
+                        <li><strong>条件：</strong>阳光 + 水分 + 二氧化碳 + 叶绿素</li>
+                        <li><strong>场所：</strong>叶绿体（光反应在类囊体，暗反应在基质）</li>
+                        <li><strong>产物：</strong>葡萄糖 + 氧气</li>
+                        <li><strong>意义：</strong>为生物圈提供氧气和有机物</li>
+                    </ul>
+                    <div style="margin-top: 30px; text-align: center; font-size: 1.2em; color: #00b894;">
+                        🎊 恭喜完成光合作用学习！
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
     <script>
-        let currentStep = 0;
-        const steps = ['demoSection', 'quizSection'];
+        let currentPage = 0;
+        const totalPages = 6;
+        let answeredQ1 = false;
         
-        function startDemo() {
-            document.getElementById('demoSection').classList.add('active');
-        }
-        
-        function showInfo(element) {
-            const info = {
-                sun: '☀️ 阳光提供光合作用所需的能量，激发叶绿素分子。',
-                co2: '💨 二氧化碳从空气中进入叶片，作为碳源参与反应。',
-                water: '💧 水分从根部吸收，提供氢元素和电子。',
-                glucose: '🍯 葡萄糖是光合作用的主要产物，为植物提供能量。',
-                oxygen: '💨 氧气是光合作用的副产物，释放到大气中。'
-            };
-            
-            const infoBox = document.getElementById('infoBox');
-            const infoText = document.getElementById('infoText');
-            
-            infoText.textContent = info[element];
-            infoBox.style.display = 'block';
-            infoBox.classList.add('active');
-            
-            setTimeout(() => {
-                document.getElementById('quizSection').classList.add('active');
-            }, 2000);
-        }
-        
-        function selectAnswer(element, isCorrect) {
-            const options = element.parentNode.children;
-            for (let option of options) {
-                option.style.pointerEvents = 'none';
-                if (option === element) {
-                    option.classList.add(isCorrect ? 'correct' : 'wrong');
-                } else if (option.onclick.toString().includes('true')) {
-                    option.classList.add('correct');
-                }
+        const leafInfos = [
+            {
+                title: "☀️ 阳光的作用",
+                content: "阳光为光合作用提供光能，激发叶绿素分子，启动光反应过程。没有光照，植物无法进行光合作用。"
+            },
+            {
+                title: "💧 水分的重要性", 
+                content: "水分不仅是光合作用的原料，还参与光反应过程，分解产生氢离子和氧气。"
+            },
+            {
+                title: "🌬️ 二氧化碳的作用",
+                content: "CO₂是暗反应的原料，在酶的催化下被固定，最终形成葡萄糖等有机物。"
             }
-            
-            setTimeout(() => {
-                alert(isCorrect ? 
-                    '🎉 回答正确！光合作用确实需要阳光、二氧化碳和水三个基本条件。' : 
-                    '❌ 回答错误。正确答案是C，光合作用需要阳光、二氧化碳和水。');
-            }, 1000);
+        ];
+        
+        function changePage(direction) {
+            const newPage = currentPage + direction;
+            if (newPage >= 0 && newPage < totalPages) {
+                goToPage(newPage);
+            }
         }
+        
+        function goToPage(pageNum) {
+            if (pageNum < 0 || pageNum >= totalPages) return;
+            
+            // 更新页面
+            document.querySelectorAll('.page')[currentPage].classList.remove('active');
+            document.querySelectorAll('.dot')[currentPage].classList.remove('active');
+            
+            currentPage = pageNum;
+            
+            document.querySelectorAll('.page')[currentPage].classList.add('active');
+            document.querySelectorAll('.dot')[currentPage].classList.add('active');
+            
+            // 更新导航按钮状态
+            document.getElementById('prevBtn').disabled = currentPage === 0;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages - 1;
+        }
+        
+        function showLeafInfo(index) {
+            const leaf = document.querySelectorAll('.interactive-leaf')[index];
+            leaf.classList.add('clicked');
+            setTimeout(() => leaf.classList.remove('clicked'), 600);
+            
+            const info = leafInfos[index];
+            document.getElementById('infoTitle').textContent = info.title;
+            document.getElementById('infoContent').textContent = info.content;
+            document.getElementById('leafInfo').style.display = 'block';
+        }
+        
+        function selectAnswer(optionIndex, isCorrect) {
+            if (answeredQ1) return;
+            
+            answeredQ1 = true;
+            const options = document.querySelectorAll('.option');
+            const result = document.getElementById('result1');
+            const resultTitle = document.getElementById('resultTitle1');
+            const resultText = document.getElementById('resultText1');
+            
+            // 显示所有答案的正确性
+            options.forEach((option, index) => {
+                if (index === 2) { // 正确答案
+                    option.classList.add('correct');
+                } else if (index === optionIndex && !isCorrect) {
+                    option.classList.add('incorrect');
+                }
+                option.disabled = true;
+            });
+            
+            // 显示结果
+            result.classList.add('show');
+            if (isCorrect) {
+                result.classList.add('correct');
+                resultTitle.textContent = '✅ 回答正确！';
+                resultText.textContent = '叶绿体是植物进行光合作用的主要场所，包含叶绿素和必要的酶系统。';
+            } else {
+                result.classList.add('incorrect');
+                resultTitle.textContent = '❌ 回答错误';
+                resultText.textContent = '正确答案是C。叶绿体是光合作用的场所，而不是细胞核、细胞膜或线粒体。';
+            }
+        }
+        
+        // 初始化
+        document.getElementById('prevBtn').disabled = true;
+        
+        // 键盘导航
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                changePage(-1);
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                changePage(1);
+            }
+        });
     </script>
-        </div>
-    </div>
 </body>
 </html>`;
 }
 
-// 生成数学课件
+// 生成数学课件（新版：16:9多页面结构）
 function generateMathCourseware() {
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1767,18 +2012,22 @@ function switchPage(pageName) {
 }
 
 // 更新进度步骤
-function updateProgressStep(step) {
+function updateProgressStep(step, markAsCompleted = false) {
     elements.progressSteps.forEach((stepEl, index) => {
         stepEl.classList.remove('active', 'completed');
         if (index + 1 < step) {
             stepEl.classList.add('completed');
         } else if (index + 1 === step) {
-            stepEl.classList.add('active');
+            if (markAsCompleted) {
+                stepEl.classList.add('completed');
+            } else {
+                stepEl.classList.add('active');
+            }
         }
     });
     
     // 如果到达最后一步，将当前步骤也标记为完成
-    if (step === 3) {
+    if (step === 3 && !markAsCompleted) {
         setTimeout(() => {
             elements.progressSteps.forEach((stepEl, index) => {
                 if (index + 1 <= step) {
@@ -1876,15 +2125,35 @@ let apiConfig = {
     baseUrl: '',
     systemPrompt: `你是一个专业的HTML互动课件生成器。请根据用户提供的课件主题和要求，生成高质量的HTML互动课件。
 
-要求：
-1. 生成完整的HTML代码，包含CSS样式和JavaScript交互
-2. 课件应该具有良好的视觉效果和用户体验
-3. 包含适当的动画和交互元素
-4. 确保代码结构清晰，注释完整
-5. 适配16:9的显示比例
-6. 内容要准确、有教育价值
+🎯 核心要求：
+1. **固定16:9比例**：课件必须严格保持16:9的宽高比，不能是流式布局
+2. **多页面结构**：课件内部包含多个子页面，支持页面间导航
+3. **三大核心模块**：
+   - 📚 重点知识展示：图文并茂的知识点讲解
+   - 🎮 互动实践：可点击、拖拽、操作的交互元素
+   - 📝 随堂练习：选择题、填空题、问答题等多种题型
 
-请直接返回HTML代码，不需要其他说明。`,
+🎨 技术规范：
+1. 使用固定尺寸容器（如100vw x 56.25vw 或 177.78vh x 100vh）
+2. 内部采用绝对定位或Flexbox，确保在任何屏幕上都保持16:9比例
+3. 包含页面导航系统（上一页/下一页按钮，页面指示器）
+4. 丰富的CSS3动画和过渡效果
+5. JavaScript交互逻辑完善，包括答题判断、进度跟踪等
+
+📋 标准课件结构：
+- 第1页：标题页 + 学习目标
+- 第2-3页：重点知识图文讲解
+- 第4-5页：互动实践操作
+- 第6-7页：随堂练习题目
+- 第8页：总结与回顾
+
+🎭 视觉要求：
+- 现代化UI设计，渐变背景，卡片式布局
+- 图标和插图丰富视觉效果
+- 统一的色彩方案和字体规范
+- 响应式交互反馈
+
+请直接返回完整的HTML代码，确保代码结构清晰、注释完善、功能完整。`,
     temperature: 0.7
 };
 

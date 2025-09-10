@@ -261,17 +261,31 @@
                     <h4><i class="fas fa-edit"></i> Prompt配置</h4>
                     <div class="form-group">
                         <label for="systemPrompt">系统Prompt:</label>
-                        <textarea id="systemPrompt" class="form-control" rows="8" placeholder="请输入系统prompt...">你是一个专业的HTML互动课件生成器。请根据用户提供的课件主题和要求，生成高质量的HTML互动课件。
+                        <textarea id="systemPrompt" class="form-control" rows="12" placeholder="请输入系统prompt...">你是一个专业的HTML互动课件生成器。请根据用户提供的课件主题和要求，生成高质量的HTML互动课件。
 
-要求：
-1. 生成完整的HTML代码，包含CSS样式和JavaScript交互
-2. 课件应该具有良好的视觉效果和用户体验
-3. 包含适当的动画和交互元素
-4. 确保代码结构清晰，注释完整
-5. 适配16:9的显示比例
-6. 内容要准确、有教育价值
+🎯 核心要求：
+1. **固定16:9比例**：课件必须严格保持16:9的宽高比，不能是流式布局
+2. **多页面结构**：课件内部包含多个子页面，支持页面间导航
+3. **三大核心模块**：
+   - 📚 重点知识展示：图文并茂的知识点讲解
+   - 🎮 互动实践：可点击、拖拽、操作的交互元素
+   - 📝 随堂练习：选择题、填空题、问答题等多种题型
 
-请直接返回HTML代码，不需要其他说明。</textarea>
+🎨 技术规范：
+1. 使用固定尺寸容器（如100vw x 56.25vw 或 177.78vh x 100vh）
+2. 内部采用绝对定位或Flexbox，确保在任何屏幕上都保持16:9比例
+3. 包含页面导航系统（上一页/下一页按钮，页面指示器）
+4. 丰富的CSS3动画和过渡效果
+5. JavaScript交互逻辑完善，包括答题判断、进度跟踪等
+
+📋 标准课件结构：
+- 第1页：标题页 + 学习目标
+- 第2-3页：重点知识图文讲解
+- 第4-5页：互动实践操作
+- 第6-7页：随堂练习题目
+- 第8页：总结与回顾
+
+请直接返回完整的HTML代码，确保代码结构清晰、注释完善、功能完整。</textarea>
                     </div>
                     <div class="form-group">
                         <label for="temperatureSlider">创意度 (Temperature):</label>
