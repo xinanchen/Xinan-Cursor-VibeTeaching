@@ -39,6 +39,9 @@ const elements = {
     fullscreenDemo: document.getElementById('fullscreenDemo'),
     demoFrame: document.getElementById('demoFrame'),
     exitDemoBtn: document.getElementById('exitDemoBtn'),
+    previewLoading: document.getElementById('previewLoading'),
+    loadingTitle: document.getElementById('loadingTitle'),
+    loadingSubtext: document.getElementById('loadingSubtext'),
     progressSteps: document.querySelectorAll('.progress-step'),
     // 配置相关元素
     configBtn: document.getElementById('configBtn'),
@@ -242,6 +245,10 @@ function startGeneration() {
 
     // 切换到生成页面
     switchPage('generate');
+    
+    // 显示预览区域和loading状态
+    elements.codePreviewSection.style.display = 'flex';
+    showPreviewLoading('正在生成课件...', 'AI正在为您创建精美的互动课件，请稍候');
     
     // 重置任务进度
     currentTaskIndex = 0;
@@ -2001,6 +2008,31 @@ function applyIframeStyles(iframe) {
     });
 }
 
+// 显示预览Loading状态
+function showPreviewLoading(title = '正在生成课件...', subtext = 'AI正在为您创建精美的互动课件，请稍候') {
+    elements.loadingTitle.textContent = title;
+    elements.loadingSubtext.textContent = subtext;
+    elements.previewLoading.style.display = 'flex';
+    elements.previewLoading.classList.remove('fade-out');
+    elements.previewFrame.style.display = 'none';
+    elements.previewFrame.classList.remove('fade-in');
+}
+
+// 隐藏预览Loading状态
+function hidePreviewLoading() {
+    // 添加淡出动画
+    elements.previewLoading.classList.add('fade-out');
+    
+    // 显示预览iframe
+    elements.previewFrame.style.display = 'block';
+    
+    // 动画完成后完全隐藏loading
+    setTimeout(() => {
+        elements.previewLoading.style.display = 'none';
+        elements.previewFrame.classList.add('fade-in');
+    }, 300);
+}
+
 // 更新预览
 function updatePreview() {
     if (!generatedHtmlCode) {
@@ -2017,8 +2049,12 @@ function updatePreview() {
     elements.previewFrame.onload = function() {
         try {
             applyIframeStyles(elements.previewFrame);
+            // 隐藏loading并显示预览
+            hidePreviewLoading();
         } catch (error) {
             console.error('预览iframe样式设置失败:', error);
+            // 即使出错也要隐藏loading
+            hidePreviewLoading();
         }
     };
 }
@@ -2052,6 +2088,11 @@ async function sendChatMessage() {
             // 调用AI修改代码
             await modifyCodeWithAI(message, loadingMessageId);
         } catch (error) {
+            // 隐藏预览loading状态（如果有显示的话）
+            if (elements.previewLoading.style.display !== 'none') {
+                hidePreviewLoading();
+            }
+            
             // 移除加载消息
             removeChatMessage(loadingMessageId);
             addChatMessage('ai', `❌ 抱歉，修改过程中出现错误：${error.message}`);
@@ -2206,6 +2247,9 @@ function isModificationRequest(message) {
 // 使用AI修改代码
 async function modifyCodeWithAI(request, loadingMessageId) {
     try {
+        // 显示预览loading状态
+        showPreviewLoading('正在修改课件...', 'AI正在根据您的要求修改课件，请稍候');
+        
         // 更新加载状态
         updateChatMessage(loadingMessageId, '🔄 正在调用AI分析修改需求...');
         
@@ -2260,6 +2304,9 @@ ${generatedHtmlCode}
         
     } catch (error) {
         console.error('AI修改代码失败:', error);
+        
+        // 隐藏预览loading状态
+        hidePreviewLoading();
         
         // 移除加载消息并显示错误
         removeChatMessage(loadingMessageId);

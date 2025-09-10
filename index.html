@@ -135,7 +135,18 @@
                         <div class="tab-content">
                             <div class="tab-pane active" id="previewTab">
                                 <div class="preview-container">
-                                    <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+                                    <!-- Loading状态 -->
+                                    <div class="preview-loading" id="previewLoading">
+                                        <div class="loading-content">
+                                            <div class="loading-spinner"></div>
+                                            <div class="loading-text">
+                                                <h3 id="loadingTitle">正在生成课件...</h3>
+                                                <p id="loadingSubtext">AI正在为您创建精美的互动课件，请稍候</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- 预览iframe -->
+                                    <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" style="display: none;"></iframe>
                                 </div>
                             </div>
                             <div class="tab-pane" id="codeTab">
