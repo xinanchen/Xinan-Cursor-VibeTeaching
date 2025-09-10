@@ -2017,15 +2017,29 @@ function addChatMessage(type, content) {
     messageDiv.id = messageId;
     messageDiv.className = `message ${type}-message fade-in`;
     
+    // 检查是否是loading消息
+    const isLoading = content.includes('🤔') || content.includes('🔄') || content.includes('🤖') || 
+                     content.includes('思考中') || content.includes('正在') || content.includes('分析');
+    
     messageDiv.innerHTML = `
         <div class="message-avatar">
             <i class="fas fa-${type === 'ai' ? 'robot' : 'user'}"></i>
         </div>
-        <div class="message-content">${content.replace(/\n/g, '<br>')}</div>
+        <div class="message-content"${isLoading ? ' data-loading="true"' : ''}>${content.replace(/\n/g, '<br>')}</div>
     `;
     
     elements.chatMessages.appendChild(messageDiv);
-    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    
+    // 清理过多的历史消息
+    cleanupChatHistory();
+    
+    // 平滑滚动到底部
+    setTimeout(() => {
+        elements.chatMessages.scrollTo({
+            top: elements.chatMessages.scrollHeight,
+            behavior: 'smooth'
+        });
+    }, 100);
     
     return messageId;
 }
@@ -2036,7 +2050,25 @@ function updateChatMessage(messageId, newContent) {
     if (messageElement) {
         const contentElement = messageElement.querySelector('.message-content');
         if (contentElement) {
+            // 移除loading状态
+            contentElement.removeAttribute('data-loading');
             contentElement.innerHTML = newContent.replace(/\n/g, '<br>');
+            
+            // 重新检查是否需要loading状态
+            const isLoading = newContent.includes('🤔') || newContent.includes('🔄') || newContent.includes('🤖') || 
+                             newContent.includes('思考中') || newContent.includes('正在') || newContent.includes('分析');
+            
+            if (isLoading) {
+                contentElement.setAttribute('data-loading', 'true');
+            }
+            
+            // 平滑滚动到底部
+            setTimeout(() => {
+                elements.chatMessages.scrollTo({
+                    top: elements.chatMessages.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }, 100);
         }
     }
 }
@@ -2045,7 +2077,24 @@ function updateChatMessage(messageId, newContent) {
 function removeChatMessage(messageId) {
     const messageElement = document.getElementById(messageId);
     if (messageElement) {
-        messageElement.remove();
+        // 添加淡出动画
+        messageElement.style.animation = 'messageSlideOut 0.3s ease-out forwards';
+        setTimeout(() => {
+            if (messageElement.parentNode) {
+                messageElement.remove();
+            }
+        }, 300);
+    }
+}
+
+// 清理过多的历史消息（保留最近20条）
+function cleanupChatHistory() {
+    const messages = elements.chatMessages.querySelectorAll('.message');
+    if (messages.length > 20) {
+        // 移除最旧的消息，保留最新的20条
+        for (let i = 0; i < messages.length - 20; i++) {
+            messages[i].remove();
+        }
     }
 }
 

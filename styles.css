@@ -720,13 +720,17 @@ body {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
+    max-height: calc(100vh - 200px);
 }
 
 .message {
     display: flex;
     gap: 10px;
-    max-width: 85%;
+    max-width: 90%;
+    align-items: flex-start;
+    clear: both;
+    margin-bottom: 4px;
 }
 
 .ai-message {
@@ -747,6 +751,7 @@ body {
     justify-content: center;
     font-size: 12px;
     flex-shrink: 0;
+    margin-top: 2px;
 }
 
 .ai-message .message-avatar {
@@ -760,20 +765,26 @@ body {
 }
 
 .message-content {
-    padding: 8px 12px;
-    border-radius: 12px;
-    font-size: 13px;
-    line-height: 1.4;
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    word-break: break-word;
+    max-width: 100%;
+    position: relative;
 }
 
 .ai-message .message-content {
     background: #f1f3f4;
     color: #333;
+    border-bottom-left-radius: 4px;
 }
 
 .user-message .message-content {
     background: #007bff;
     color: white;
+    border-bottom-right-radius: 4px;
 }
 
 .chat-input {
@@ -1250,14 +1261,87 @@ body {
     line-height: 1.4;
 }
 
+/* 聊天改进样式 */
+
+/* 消息淡入动画 */
+.message.fade-in {
+    animation: messageSlideIn 0.3s ease-out;
+    opacity: 1;
+}
+
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes messageSlideOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+        max-height: 200px;
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+        max-height: 0;
+        margin: 0;
+        padding: 0;
+    }
+}
+
+/* 长消息内容的优化 */
+.message-content {
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+.message-content ul {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.message-content li {
+    margin: 4px 0;
+}
+
+.message-content strong {
+    font-weight: 600;
+}
+
+/* 聊天滚动条样式 */
+.chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
+
 /* 聊天加载状态样式 */
-.message.ai-message .message-content {
+.message-content:has-text("🤔"),
+.message-content:has-text("🔄"),
+.message-content:has-text("🤖") {
     position: relative;
 }
 
-.message.ai-message .message-content:has-text("🤔"):after,
-.message.ai-message .message-content:has-text("🔄"):after,
-.message.ai-message .message-content:has-text("🤖"):after {
+.message-content:has-text("🤔"):after,
+.message-content:has-text("🔄"):after,
+.message-content:has-text("🤖"):after {
     content: "";
     display: inline-block;
     width: 12px;
@@ -1268,6 +1352,36 @@ body {
     animation: spin 1s linear infinite;
     margin-left: 8px;
     vertical-align: middle;
+}
+
+/* 修复对话框布局问题 */
+.message-content br {
+    line-height: 1.6;
+}
+
+/* 确保消息不重叠 */
+.message + .message {
+    margin-top: 8px;
+}
+
+/* loading消息特殊样式 */
+.message-content[data-loading="true"] {
+    position: relative;
+    padding-right: 30px;
+}
+
+.message-content[data-loading="true"]:after {
+    content: "";
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border: 2px solid #ff6b6b;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
