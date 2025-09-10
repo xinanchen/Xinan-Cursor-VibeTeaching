@@ -215,6 +215,21 @@ function loadHistoryItem(title) {
     showToast('已加载历史项目模板');
 }
 
+// 新的8步骤任务配置
+const taskSteps = [
+    { id: 1, name: 'AI课件生成器启动', streamText: '🚀 正在启动AI课件生成器...', duration: 1000 },
+    { id: 2, name: '深度思考理解课件需求', streamText: '🧠 深度分析您的课件需求...', duration: 2000 },
+    { id: 3, name: '确定教学目标和受众', streamText: '🎯 确定教学目标和目标受众...', duration: 1500 },
+    { id: 4, name: '设计课件HTML架构', streamText: '🏗️ 设计课件HTML整体架构...', duration: 1800 },
+    { id: 5, name: '编写CSS样式代码', streamText: '🎨 编写精美的CSS样式代码...', duration: 2200 },
+    { id: 6, name: '实现JS功能交互', streamText: '⚡ 实现JavaScript交互功能...', duration: 2000 },
+    { id: 7, name: '检查代码和优化性能', streamText: '🔍 检查代码质量并优化性能...', duration: 1200 },
+    { id: 8, name: 'AI课件生成完成，可以预览和下载了', streamText: '🎉 课件生成完成！正在准备预览...', duration: 1000 }
+];
+
+let currentTaskIndex = 0;
+let currentStepElement = null;
+
 // 开始生成过程
 function startGeneration() {
     const prompt = elements.promptInput.value.trim();
@@ -227,14 +242,111 @@ function startGeneration() {
     // 切换到生成页面
     switchPage('generate');
     
-    // 初始化思考步骤
-    initThinkingProcess(prompt);
+    // 重置任务进度
+    currentTaskIndex = 0;
+    elements.streamingContent.innerHTML = '';
     
-    // 开始AI思考模拟
-    startThinkingSimulation();
+    // 开始执行任务流程
+    executeNextTask();
 }
 
-// 初始化思考过程
+// 执行下一个任务
+function executeNextTask() {
+    if (currentTaskIndex >= taskSteps.length) {
+        // 所有任务完成
+        finishAllTasks();
+        return;
+    }
+    
+    const currentTask = taskSteps[currentTaskIndex];
+    
+    // 更新进度条（显示loading状态）
+    updateProgressStep(currentTask.id);
+    
+    // 在流式区域显示loading状态
+    currentStepElement = addLoadingStreamingStep(currentTask.streamText, 'thinking');
+    
+    // 模拟任务执行时间
+    setTimeout(() => {
+        // 完成当前步骤
+        completeLoadingStep(currentStepElement, currentTask.streamText.replace('正在', '已完成').replace('...', ''));
+        
+        // 更新进度条（标记为完成）
+        updateProgressStep(currentTask.id, true);
+        
+        // 执行特殊逻辑（如API调用）
+        if (currentTask.id === 6) {
+            // 在第6步实现JS功能交互时，执行实际的课件生成
+            executeActualGeneration();
+        }
+        
+        // 继续下一个任务
+        currentTaskIndex++;
+        
+        // 短暂延迟后执行下一个任务
+        setTimeout(() => {
+            executeNextTask();
+        }, 500);
+        
+    }, currentTask.duration);
+}
+
+// 执行实际的课件生成（在第6步时调用）
+async function executeActualGeneration() {
+    const prompt = elements.promptInput.value;
+    let uploadedContent = '';
+    
+    // 如果有上传的文件，提取内容
+    if (uploadedFile) {
+        uploadedContent = `文件名：${uploadedFile.name}`;
+    }
+    
+    // 尝试使用真实AI API生成
+    let generatedContent = null;
+    
+    if (apiConfig.apiKey) {
+        try {
+            generatedContent = await generateCoursewareWithAI(prompt, uploadedContent);
+        } catch (error) {
+            console.error('AI生成失败:', error);
+        }
+    }
+    
+    // 如果API生成失败或没有配置，使用示例代码作为后备
+    if (!generatedContent) {
+        generatedContent = generateSampleCourseware();
+    }
+    
+    generatedHtmlCode = generatedContent;
+}
+
+// 完成所有任务
+function finishAllTasks() {
+    // 显示代码和预览区域
+    elements.codePreviewSection.style.display = 'flex';
+    
+    // 显示生成的代码
+    elements.generatedCode.textContent = generatedHtmlCode;
+    
+    // 更新预览
+    updatePreview();
+    
+    // 启用头部按钮
+    enableActionButtons();
+    
+    // 更新状态文本
+    elements.generationStatus.innerHTML = '<p class="status-text">✅ 所有功能已激活，可正常使用</p>';
+    
+    // 添加AI消息
+    const aiMessage = apiConfig.apiKey 
+        ? '🎊 太棒了！AI已经为您生成了专属课件。现在您可以：\n• 点击"预览"查看课件效果\n• 使用"演示"进行全屏展示\n• 选择"下载"保存到本地\n\n如需调整课件内容，随时告诉我哦！'
+        : '🎊 使用示例模板为您生成了课件。要使用AI生成个性化课件，请先配置API Key。现在您可以：\n• 点击"预览"查看课件效果\n• 使用"演示"进行全屏展示\n• 选择"下载"保存到本地\n• 点击右上角⚙️配置AI API';
+    
+    addChatMessage('ai', aiMessage);
+}
+
+// 以下旧的思考和代码生成逻辑已被新的8步骤流程替代，保留以备用
+/* 
 function initThinkingProcess(prompt) {
     thinkingSteps = [
         '📋 解析课件需求内容',
@@ -248,7 +360,6 @@ function initThinkingProcess(prompt) {
     updateProgressStep(1);
 }
 
-// 开始思考模拟
 function startThinkingSimulation() {
     const thinkingInterval = setInterval(() => {
         if (currentThinkingStep < thinkingSteps.length) {
@@ -260,6 +371,7 @@ function startThinkingSimulation() {
         }
     }, 1500);
 }
+*/
 
 // 添加流式输出步骤
 function addStreamingStep(step, type = 'thinking') {
@@ -2011,7 +2123,7 @@ function switchPage(pageName) {
     currentPage = pageName;
 }
 
-// 更新进度步骤
+// 更新进度步骤（支持8个步骤）
 function updateProgressStep(step, markAsCompleted = false) {
     elements.progressSteps.forEach((stepEl, index) => {
         stepEl.classList.remove('active', 'completed');
@@ -2027,7 +2139,7 @@ function updateProgressStep(step, markAsCompleted = false) {
     });
     
     // 如果到达最后一步，将当前步骤也标记为完成
-    if (step === 3 && !markAsCompleted) {
+    if (step === 8 && !markAsCompleted) {
         setTimeout(() => {
             elements.progressSteps.forEach((stepEl, index) => {
                 if (index + 1 <= step) {

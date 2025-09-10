@@ -382,18 +382,30 @@ body {
 
 .progress-indicator {
     display: flex;
-    gap: 2px;
+    gap: 1px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.progress-indicator::-webkit-scrollbar {
+    display: none;
 }
 
 .progress-step {
-    padding: 8px 16px;
+    padding: 6px 10px;
     background: rgba(0, 0, 0, 0.05);
     border-radius: 6px;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 500;
     color: #666;
     transition: all 0.3s ease;
     position: relative;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 60px;
+    text-align: center;
 }
 
 .progress-step.active {
